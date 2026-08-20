@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENTINEL 2.1 — Smart Home Security Engine</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- CABEÇALHO -->
+  <header class="navbar">
+    <div class="logo">
+      <span class="shield-icon">🛡️</span>
+      <h1>SENTINEL <span>2.1</span></h1>
+    </div>
+    <div class="system-status">
+      <span class="status-dot green"></span> SISTEMA OPERACIONAL
+    </div>
+  </header>
+
+  <!-- PAINEL PRINCIPAL GRID -->
+  <main class="dashboard-grid">
+
+    <!-- COLUNA ESQUERDA: MÓDULO PREDITIVO DE RISCO -->
+    <section class="card risk-card">
+      <h2>ÍNDICE PREDITIVO DE RISCO</h2>
+      
+      <div class="gauge-container">
+        <div class="gauge-circle" id="gaugeCircle">
+          <span class="gauge-value" id="riskValue">10%</span>
+          <span class="gauge-label" id="riskLevel">RISCO BAIXO</span>
+        </div>
+      </div>
+
+      <div class="device-summary">
+        <h3>STATUS DOS ACESSOS</h3>
+        <div class="status-item">
+          <span>Porta Principal:</span>
+          <strong id="statusPortaPrincipal" class="text-green">TRANCADA</strong>
+        </div>
+        <div class="status-item">
+          <span>Janela da Sala:</span>
+          <strong id="statusJanelaSala" class="text-green">FECHADA</strong>
+        </div>
+        <div class="status-item">
+          <span>Último Acesso:</span>
+          <span id="lastAccess">Aguardando...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUNA CENTRAL: MAPA 2D DA CASA -->
+    <section class="card map-card">
+      <div class="map-header">
+        <h2>PLANTA BAIXA 2D (SIMULADOR DE CÂMERAS & SENSORES)</h2>
+        <span class="instruction">Clique em uma câmera para abrir o feed ao vivo</span>
+      </div>
+
+      <div class="house-map" id="houseMap">
+        <!-- ÁREAS DA CASA -->
+        <div class="room hallway">CORREDOR</div>
+        <div class="room living-room">SALA DE ESTAR</div>
+        <div class="room bedroom">QUARTO</div>
+        <div class="room kitchen">COZINHA</div>
+
+        <!-- ÍCONES DE CÂMERAS CLICÁVEIS -->
+        <button class="cam-btn cam-entrance" onclick="abrirCamera('cam_entrada', 'Entrada Principal')">
+          🎥 Entrada
+        </button>
+        <button class="cam-btn cam-living" onclick="abrirCamera('cam_sala', 'Sala de Estar')">
+          🎥 Sala
+        </button>
+        <button class="cam-btn cam-backyard" onclick="abrirCamera('cam_quintal', 'Quintal')">
+          🎥 Quintal
+        </button>
+
+        <!-- SENSORES INTERATIVOS (PORTAS E JANELAS) -->
+        <button class="sensor-btn door-main" id="btnPortaPrincipal" onclick="togglePorta()">
+          🚪 Porta Principal (TRANCADA)
+        </button>
+        <button class="sensor-btn window-living" id="btnJanelaSala" onclick="toggleJanela()">
+          🪟 Janela Sala (FECHADA)
+        </button>
+      </div>
+    </section>
+
+    <!-- COLUNA DIREITA: LOGS E ASSISTENTE -->
+    <section class="card log-card">
+      <h2>HISTÓRICO DE EVENTOS</h2>
+      <div class="log-feed" id="logFeed">
+        <div class="log-item info">
+          <small>09:47</small> Sistema Sentinel 2.1 inicializado com sucesso.
+        </div>
+      </div>
+
+      <div class="chatbot-widget">
+        <h3>💬 SENTINEL ASSISTANT</h3>
+        <p class="chat-msg">Aguardando comandos de voz ou texto...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DA WEBCAM DO NOTEBOOK -->
+  <div class="modal-overlay" id="cameraModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">FEED DA WEBCAM</h3>
+        <button class="close-btn" onclick="fecharCamera()">✖</button>
+      </div>
+      
+      <div class="webcam-viewport">
+        <video id="webcam" autoplay muted playsinline></video>
+        <div class="facial-overlay" id="facialOverlay">
+          <span id="scanStatus">ESCANEANDO BIOMETRIA...</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-action green" onclick="simularMorador()">Simular: Morador (Reconhecido)</button>
+        <button class="btn-action red" onclick="simularIntruso()">Simular: Desconhecido (Invasão)</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
