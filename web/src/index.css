@@ -1,0 +1,97 @@
+/* RESET BÁSICO E CORES GLOBAIS */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+.text-green { color: #10b981; } .text-red { color: #ef4444; }
+
+/* CABEÇALHO */
+.navbar { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background-color: #1e293b; border-bottom: 2px solid #334155; }
+.logo h1 { font-size: 1.5rem; letter-spacing: 2px; }
+.logo span { color: #38bdf8; }
+.system-status { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 0.85rem; color: #94a3b8; }
+.status-dot { width: 10px; height: 10px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981; }
+
+/* GRID PRINCIPAL */
+.dashboard-grid { display: grid; grid-template-columns: 300px 1fr 350px; gap: 20px; padding: 20px; height: calc(100vh - 70px); }
+.card { background-color: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; display: flex; flex-direction: column; }
+.card h2 { font-size: 0.9rem; letter-spacing: 1px; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 15px; }
+
+/* VELOCÍMETRO DE RISCO */
+.gauge-container { display: flex; justify-content: center; margin: 20px 0; }
+.gauge-circle { width: 150px; height: 150px; border-radius: 50%; border: 8px solid #10b981; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); transition: all 0.5s ease; }
+.gauge-value { font-size: 2.5rem; font-weight: bold; }
+.gauge-label { font-size: 0.75rem; color: #94a3b8; font-weight: bold; margin-top: 5px; }
+.device-summary { margin-top: 20px; }
+.status-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; padding: 8px; background: #0f172a; border-radius: 6px; }
+
+/* PLANTA BAIXA 2D */
+.map-header { display: flex; justify-content: space-between; align-items: center; }
+.instruction { font-size: 0.8rem; color: #38bdf8; }
+.house-map { flex: 1; border: 2px dashed #475569; border-radius: 8px; position: relative; margin-top: 15px; background-color: #0f172a; overflow: hidden; }
+.room { position: absolute; border: 1px solid #334155; display: flex; justify-content: center; align-items: center; color: #64748b; font-weight: bold; font-size: 0.8rem; letter-spacing: 2px; transition: background-color 0.5s ease; }
+.hallway { top: 10%; left: 10%; width: 30%; height: 80%; background-color: #1e293b; }
+.living-room { top: 10%; right: 10%; width: 45%; height: 45%; background-color: #1e293b; }
+.bedroom { bottom: 10%; left: 45%; width: 20%; height: 35%; background-color: #1e293b; }
+.kitchen { bottom: 10%; right: 10%; width: 20%; height: 35%; background-color: #1e293b; }
+
+/* SENSORES DE PERIGO NO MAPA */
+.sensor-btn { position: absolute; padding: 5px 10px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer; color: white; transition: 0.3s; z-index: 10; font-weight: bold; }
+.door-main { top: 5%; left: 20%; background-color: #10b981; }
+.window-living { top: 30%; right: 5%; background-color: #10b981; }
+.sensor-fire { top: 60%; right: 12%; background-color: #475569; }
+.sensor-gas { top: 75%; right: 12%; background-color: #475569; }
+.door-main.open, .window-living.open { background-color: #ef4444; }
+.sensor-fire.active { background-color: #ef4444 !important; animation: pulse 1s infinite; }
+.sensor-gas.active { background-color: #f59e0b !important; animation: pulse 1s infinite; }
+.room.hazard { background-color: rgba(239, 68, 68, 0.2) !important; border-color: #ef4444 !important; }
+
+/* CÂMERAS NO MAPA */
+.cam-btn { position: absolute; padding: 8px 12px; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; z-index: 10; transition: all 0.3s ease; }
+.cam-btn:hover { background: #38bdf8; color: #0f172a; font-weight: bold; }
+.cam-entrance { top: -15px; left: 15%; }
+.cam-living { top: 15%; right: 15%; }
+.cam-backyard { bottom: -15px; right: 20%; }
+
+/* CHATBOT */
+.chatbot-widget { background: #0d131f; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; height: 250px; border: 1px solid #1e293b; }
+.chatbot-widget h3 { font-size: 0.8rem; color: #00f2ff; margin-bottom: 0; }
+.chat-history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
+.chat-msg { padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; max-width: 90%; }
+.system-msg { background: #1e293b; color: #00f2ff; align-self: flex-start; border-left: 3px solid #00f2ff; }
+.user-msg { background: #0284c7; color: white; align-self: flex-end; }
+.chat-input-area { display: flex; gap: 5px; }
+.chat-input-area input { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #334155; background: #161e2e; color: white; }
+.chat-input-area button { padding: 8px 12px; background: #10b981; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; }
+
+/* LOGS */
+.log-feed { flex: 1; overflow-y: auto; background-color: #0f172a; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 0.8rem; }
+.log-item { margin-bottom: 8px; border-bottom: 1px dashed #334155; padding-bottom: 8px; color: #94a3b8; }
+.log-item small { color: #38bdf8; margin-right: 5px; }
+
+/* AÇÕES DE EMERGÊNCIA */
+.emergency-actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-emergency { padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; }
+.btn-fire { background: #dc2626; }
+.btn-police { background: #1d4ed8; }
+
+/* MODAIS (WEBCAM & EMERGÊNCIA) */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: #1e293b; padding: 20px; border-radius: 12px; width: 700px; max-width: 90%; border: 1px solid #334155; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+.close-btn { background: none; border: none; color: #ef4444; font-size: 1.5rem; cursor: pointer; }
+.webcam-viewport { width: 100%; height: 400px; background: #000; position: relative; border-radius: 8px; overflow: hidden; }
+#webcam { width: 100%; height: 100%; object-fit: cover; }
+.facial-overlay { position: absolute; bottom: 10px; left: 10px; background: rgba(0, 0, 0, 0.7); padding: 5px 15px; border-radius: 4px; border: 1px solid #10b981; }
+#scanStatus { color: #10b981; font-family: monospace; font-weight: bold; }
+.modal-footer { display: flex; justify-content: space-between; margin-top: 15px; gap: 10px; }
+.btn-action { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; }
+.btn-action.green { background: #10b981; }
+.btn-action.orange { background: #f59e0b; }
+.btn-action.red { background: #ef4444; }
+.emergency-box { text-align: center; border-color: #ef4444 !important; }
+.call-animation { font-size: 2rem; margin: 1.5rem 0; color: #ef4444; font-weight: bold; }
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
