@@ -1,62 +1,173 @@
-// ESTADO DO SISTEMA
+// ==========================================
+// ESTADO GLOBAL DO SISTEMA
+// ==========================================
 let estadoSistema = {
-  portaPrincipal: false, // false = Trancada, true = Aberta
-  janelaSala: false,      // false = Fechada, true = Aberta
-  cameraAtiva: null,
-  streamWebcam: null
+  portaPrincipal: false,
+  janelaSala: false,
+  incendioDetectado: false,
+  gasDetectado: false,
+  alertaPolicial: false,
+  streamWebcam: null,
+  timerEmergencia: null
 };
 
-// ELEMENTOS DA TELA
-const modal = document.getElementById('cameraModal');
-const webcamElement = document.getElementById('webcam');
-const modalTitle = document.getElementById('modalTitle');
-const riskValue = document.getElementById('riskValue');
-const riskLevel = document.getElementById('riskLevel');
-const gaugeCircle = document.getElementById('gaugeCircle');
-const scanStatus = document.getElementById('scanStatus');
+// BANCO DE DADOS SIMULADO DA POLÍCIA CIVIL / MILITAR
+const bancoDadosPolicia = [
+  { id: 'PROC-8832', nome: 'Carlos "Sombra" Mendes', mandado: 'Ativo - Art. 157', periculosidade: 'ALTA' }
+];
 
-// 1. GERENCIAR CÂMERA E WEBCAM DO NOTEBOOK
-async function abrirCamera(id, nome) {
-  estadoSistema.cameraAtiva = nome;
-  modalTitle.innerText = `FEED AO VIVO — ${nome.toUpperCase()}`;
-  modal.style.display = 'flex';
+// ==========================================
+// 🛡️ 1. MOTOR PREDITIVO DE RISCO
+// ==========================================
+function recalcularRisco() {
+  let scoreRisco = 10;
 
+  if (estadoSistema.portaPrincipal) scoreRisco += 25;
+  if (estadoSistema.janelaSala) scoreRisco += 20;
+  if (estadoSistema.gasDetectado) scoreRisco += 50;
+  if (estadoSistema.incendioDetectado) scoreRisco += 70;
+  if (estadoSistema.alertaPolicial) scoreRisco += 90;
+
+  if (scoreRisco > 100) scoreRisco = 100;
+
+  atualizarUI(scoreRisco);
+}
+
+function atualizarUI(score) {
+  const riskValue = document.getElementById('riskValue');
+  const riskLevel = document.getElementById('riskLevel');
+  const gaugeCircle = document.getElementById('gaugeCircle');
+
+  riskValue.innerText = `${score}%`;
+
+  if (score < 30) {
+    riskLevel.innerText = 'RISCO BAIXO';
+    gaugeCircle.style.borderColor = '#10b981';
+    gaugeCircle.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.4)';
+  } else if (score < 70) {
+    riskLevel.innerText = 'ATENÇÃO / RISCO MÉDIO';
+    gaugeCircle.style.borderColor = '#f59e0b';
+    gaugeCircle.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.4)';
+  } else {
+    riskLevel.innerText = 'ALERTA MÁXIMO / EMERGÊNCIA';
+    gaugeCircle.style.borderColor = '#ef4444';
+    gaugeCircle.style.boxShadow = '0 0 25px rgba(239, 68, 68, 0.7)';
+  }
+}
+
+// ==========================================
+// 🤖 2. IA DE RECONHECIMENTO FACIAL (face-api.js)
+// ==========================================
+let iaCarregada = false;
+let rostoMemorizado = null; 
+let intervaloReconhecimento = null;
+
+async function carregarModelosIA() {
+  const statusEl = document.getElementById('scanStatus');
+  if (statusEl) statusEl.innerText = "CARREGANDO REDE NEURAL...";
+  
+  const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+  
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    webcamElement.srcObject = stream;
-    estadoSistema.streamWebcam = stream;
-    adicionarLog(`Câmera ativada: ${nome}`);
-  } catch (err) {
-    alert("Erro ao acessar a webcam do notebook: " + err.message);
+    await Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+    iaCarregada = true;
+    if (statusEl) statusEl.innerText = "IA PRONTA. AGUARDANDO BIOMETRIA.";
+    adicionarLog("Sistema Sentinel: IA de Visão Computacional Carregada.");
+  } catch (erro) {
+    adicionarLog("Erro ao carregar IA. Verifique sua conexão.");
+    console.error(erro);
   }
 }
 
-function fecharCamera() {
-  modal.style.display = 'none';
-  if (estadoSistema.streamWebcam) {
-    estadoSistema.streamWebcam.getTracks().forEach(track => track.stop());
+async function cadastrarBiometria() {
+  if (!iaCarregada) return alert("Aguarde a IA carregar os modelos!");
+  const video = document.getElementById('webcam');
+  document.getElementById('scanStatus').innerText = "ESCANEMENTO... OLHE PARA A CÂMERA.";
+
+  const detecao = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+  
+  if (detecao) {
+    rostoMemorizado = detecao.descriptor;
+    document.getElementById('scanStatus').innerText = "✅ ROSTO MEMORIZADO COM SUCESSO!";
+    document.getElementById('scanStatus').style.color = "#10b981";
+    adicionarLog("Biometria cadastrada temporariamente na memória RAM.");
+  } else {
+    document.getElementById('scanStatus').innerText = "❌ ROSTO NÃO ENCONTRADO. TENTE NOVAMENTE.";
+    document.getElementById('scanStatus').style.color = "#ef4444";
   }
 }
 
-// 2. SIMULADOR DE SENSORES DE ACESSO
+async function iniciarReconhecimento() {
+  if (!rostoMemorizado) return alert("Você precisa memorizar seu rosto primeiro!");
+  const video = document.getElementById('webcam');
+  document.getElementById('scanStatus').innerText = "MONITORAMENTO IA ATIVADO 🟢";
+  
+  const comparador = new faceapi.FaceMatcher(rostoMemorizado, 0.5);
+
+  intervaloReconhecimento = setInterval(async () => {
+    const rostoNaCamera = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+
+    if (rostoNaCamera) {
+      const resultado = comparador.findBestMatch(rostoNaCamera.descriptor);
+      if (resultado.label === "unknown") {
+        simularDesconhecido();
+      } else {
+        simularMorador();
+      }
+    }
+  }, 1000);
+}
+
+// Funções acionadas pela IA e Simulação
+function simularMorador() {
+  if (estadoSistema.alertaPolicial) return; // Não libera se houver polícia
+  document.getElementById('scanStatus').innerText = "VERIFIED: MORADOR — ACESSO PERMITIDO";
+  document.getElementById('scanStatus').style.color = "#10b981";
+  document.getElementById('lastAccess').innerText = "Morador Autorizado";
+  
+  if (estadoSistema.portaPrincipal) {
+      togglePorta(); // Destranca a porta se estiver trancada
+  }
+  recalcularRisco();
+}
+
+function simularDesconhecido() {
+  if (estadoSistema.alertaPolicial) return;
+  document.getElementById('scanStatus').innerText = "DESCONHECIDO — ACESSO NEGADO";
+  document.getElementById('scanStatus').style.color = "#f59e0b";
+  document.getElementById('lastAccess').innerText = "Pessoa Não Cadastrada";
+  recalcularRisco();
+}
+
+function simularProcuradoPolicia() {
+  estadoSistema.alertaPolicial = true;
+  const procurado = bancoDadosPolicia[0];
+  
+  document.getElementById('scanStatus').innerText = `🚨 CRÍTICO: PROCURADO (${procurado.nome})`;
+  document.getElementById('scanStatus').style.color = "#ef4444";
+  document.getElementById('lastAccess').innerText = `ALERTA POLICIAL (${procurado.id})`;
+  
+  adicionarLog(`🚨 ALERTA POLICIAL: Indivíduo com mandado de prisão detectado.`);
+  recalcularRisco();
+  discarEmergencia('190 (POLÍCIA MILITAR)', `FORAGIDO DETECTADO: ${procurado.nome}`);
+}
+
+// ==========================================
+// ⚠️ 3. SENSORES FÍSICOS DA PLANTA
+// ==========================================
 function togglePorta() {
   estadoSistema.portaPrincipal = !estadoSistema.portaPrincipal;
   const btn = document.getElementById('btnPortaPrincipal');
-  const txtStatus = document.getElementById('statusPortaPrincipal');
+  const status = document.getElementById('statusPortaPrincipal');
 
-  if (estadoSistema.portaPrincipal) {
-    btn.classList.add('open');
-    btn.innerText = '🚪 Porta Principal (ABERTA)';
-    txtStatus.innerText = 'ABERTA';
-    txtStatus.className = 'text-red';
-    adicionarLog('ALERTA: Porta Principal foi ABERTA!');
-  } else {
-    btn.classList.remove('open');
-    btn.innerText = '🚪 Porta Principal (TRANCADA)';
-    txtStatus.innerText = 'TRANCADA';
-    txtStatus.className = 'text-green';
-    adicionarLog('Porta Principal trancada com segurança.');
-  }
+  btn.classList.toggle('open', estadoSistema.portaPrincipal);
+  btn.innerText = estadoSistema.portaPrincipal ? '🚪 Porta (ABERTA)' : '🚪 Porta (TRANCADA)';
+  status.innerText = estadoSistema.portaPrincipal ? 'ABERTA' : 'TRANCADA';
+  status.className = estadoSistema.portaPrincipal ? 'text-red' : 'text-green';
 
   recalcularRisco();
 }
@@ -64,75 +175,170 @@ function togglePorta() {
 function toggleJanela() {
   estadoSistema.janelaSala = !estadoSistema.janelaSala;
   const btn = document.getElementById('btnJanelaSala');
-  const txtStatus = document.getElementById('statusJanelaSala');
+  const status = document.getElementById('statusJanelaSala');
 
-  if (estadoSistema.janelaSala) {
-    btn.classList.add('open');
-    btn.innerText = '🪟 Janela Sala (ABERTA)';
-    txtStatus.innerText = 'ABERTA';
-    txtStatus.className = 'text-red';
-    adicionarLog('ALERTA: Janela da Sala foi ABERTA!');
-  } else {
-    btn.classList.remove('open');
-    btn.innerText = '🪟 Janela Sala (FECHADA)';
-    txtStatus.innerText = 'FECHADA';
-    txtStatus.className = 'text-green';
-    adicionarLog('Janela da Sala fechada com segurança.');
-  }
+  btn.classList.toggle('open', estadoSistema.janelaSala);
+  btn.innerText = estadoSistema.janelaSala ? '🪟 Janela (ABERTA)' : '🪟 Janela (FECHADA)';
+  status.innerText = estadoSistema.janelaSala ? 'ABERTA' : 'FECHADA';
+  status.className = estadoSistema.janelaSala ? 'text-red' : 'text-green';
 
   recalcularRisco();
 }
 
-// 3. MOTOR PREDITIVO DE RISCO (REGRAS)
-function recalcularRisco(bonusIntruso = 0) {
-  let scoreRisco = 10; // Risco base
+function toggleIncendio() {
+  estadoSistema.incendioDetectado = !estadoSistema.incendioDetectado;
+  const btn = document.getElementById('btnFireSensor');
+  const room = document.getElementById('roomKitchen');
+  const txtStatus = document.getElementById('statusFumaca');
 
-  if (estadoSistema.portaPrincipal) scoreRisco += 40;
-  if (estadoSistema.janelaSala) scoreRisco += 30;
-  scoreRisco += bonusIntruso;
-
-  if (scoreRisco > 100) scoreRisco = 100;
-
-  riskValue.innerText = `${scoreRisco}%`;
-
-  if (scoreRisco < 30) {
-    riskLevel.innerText = 'RISCO BAIXO';
-    gaugeCircle.style.borderColor = '#10b981';
-    gaugeCircle.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.4)';
-  } else if (scoreRisco < 70) {
-    riskLevel.innerText = 'RISCO MÉDIO (ATENÇÃO)';
-    gaugeCircle.style.borderColor = '#f59e0b';
-    gaugeCircle.style.boxShadow = '0 0 15px rgba(245, 158, 11, 0.4)';
+  if (estadoSistema.incendioDetectado) {
+    btn.classList.add('active');
+    btn.innerText = '🔥 INCÊNDIO!';
+    room.classList.add('hazard');
+    txtStatus.innerText = 'FUMAÇA/FOGO';
+    txtStatus.className = 'text-red';
+    adicionarLog('🔥 EMERGÊNCIA: Sensor de fumaça disparado na Cozinha!');
+    discarEmergencia('193 (BOMBEIROS)', 'Detecção de Incêndio na Cozinha');
   } else {
-    riskLevel.innerText = 'PERIGO (INVASÃO)';
-    gaugeCircle.style.borderColor = '#ef4444';
-    gaugeCircle.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.6)';
+    btn.classList.remove('active');
+    btn.innerText = '🔥 Sensor Fumaça';
+    room.classList.remove('hazard');
+    txtStatus.innerText = 'NORMAL';
+    txtStatus.className = 'text-green';
+  }
+  recalcularRisco();
+}
+
+function toggleGas() {
+  estadoSistema.gasDetectado = !estadoSistema.gasDetectado;
+  const btn = document.getElementById('btnGasSensor');
+  const txtStatus = document.getElementById('statusGas');
+
+  if (estadoSistema.gasDetectado) {
+    btn.classList.add('active');
+    btn.innerText = '⚠️ VAZAMENTO!';
+    txtStatus.innerText = 'VAZAMENTO DETECTADO';
+    txtStatus.className = 'text-red';
+    adicionarLog('⚠️ ALERTA: Vazamento de Gás GLP! Válvula bloqueada.');
+  } else {
+    btn.classList.remove('active');
+    btn.innerText = '⚠️ Sensor Gás GLP';
+    txtStatus.innerText = 'NORMAL';
+    txtStatus.className = 'text-green';
+  }
+  recalcularRisco();
+}
+
+// ==========================================
+// 🚨 4. EMERGÊNCIA E WEBCAM
+// ==========================================
+function discarEmergencia(servico, motivo) {
+  const modalEmergencia = document.getElementById('emergencyModal');
+  document.getElementById('emergencyTitle').innerText = `🚨 LIGANDO PARA ${servico}`;
+  document.getElementById('emergencyBody').innerText = `Motivo: ${motivo}. Estabelecendo conexão...`;
+  modalEmergencia.style.display = 'flex';
+
+  let segundos = 3;
+  document.getElementById('emergencyTimer').innerText = `00:0${segundos}`;
+
+  clearInterval(estadoSistema.timerEmergencia);
+  estadoSistema.timerEmergencia = setInterval(() => {
+    segundos--;
+    document.getElementById('emergencyTimer').innerText = `00:0${segundos}`;
+    if (segundos <= 0) {
+      clearInterval(estadoSistema.timerEmergencia);
+      document.getElementById('emergencyBody').innerText = `CHAMADA CONECTADA. Transmitindo dados.`;
+      adicionarLog(`📞 Chamada efetuada para ${servico}.`);
+    }
+  }, 1000);
+}
+
+function cancelarEmergencia() {
+  clearInterval(estadoSistema.timerEmergencia);
+  document.getElementById('emergencyModal').style.display = 'none';
+  adicionarLog('Chamada de emergência cancelada pelo operador.');
+}
+
+async function abrirCamera(id, nome) {
+  document.getElementById('modalTitle').innerText = `FEED AO VIVO — ${nome.toUpperCase()}`;
+  document.getElementById('cameraModal').style.display = 'flex';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    document.getElementById('webcam').srcObject = stream;
+    estadoSistema.streamWebcam = stream;
+  } catch (err) {
+    alert("Erro ao conectar a webcam: " + err.message);
   }
 }
 
-// 4. SIMULADORES DE RECONHECIMENTO FACIAL
-function simularMorador() {
-  scanStatus.innerText = "VERIFIED: MORADOR — ACESSO PERMITIDO";
-  scanStatus.style.color = "#10b981";
-  document.getElementById('lastAccess').innerText = "Morador (Autorizado)";
-  adicionarLog(`Reconhecimento Facial: Morador validado na ${estadoSistema.cameraAtiva}.`);
-  recalcularRisco(0);
+function fecharCamera() {
+  document.getElementById('cameraModal').style.display = 'none';
+  clearInterval(intervaloReconhecimento);
+  if (estadoSistema.streamWebcam) {
+    estadoSistema.streamWebcam.getTracks().forEach(t => t.stop());
+  }
 }
 
-function simularIntruso() {
-  scanStatus.innerText = "ALERTA: ROSTO NÃO RECONHECIDO (DESCONHECIDO)";
-  scanStatus.style.color = "#ef4444";
-  document.getElementById('lastAccess').innerText = "INTRUSO DETECTADO!";
-  adicionarLog(`ALERTA CRÍTICO: Pessoa não autorizada na ${estadoSistema.cameraAtiva}!`);
-  recalcularRisco(60);
-}
-
-// UTILITÁRIO DE LOGS
-function adicionarLog(mensagem) {
-  const logFeed = document.getElementById('logFeed');
+function adicionarLog(msg) {
+  const feed = document.getElementById('logFeed');
   const hora = new Date().toLocaleTimeString().substring(0, 5);
-  const item = document.createElement('div');
-  item.className = 'log-item';
-  item.innerHTML = `<small>${hora}</small> ${mensagem}`;
-  logFeed.prepend(item);
+  const div = document.createElement('div');
+  div.className = 'log-item';
+  div.innerHTML = `<small>${hora}</small> ${msg}`;
+  feed.prepend(div);
 }
+
+// ==========================================
+// 💬 5. CHATBOT INTERATIVO NLP
+// ==========================================
+function verificarEnter(event) {
+  if (event.key === 'Enter') enviarMensagem();
+}
+
+function enviarMensagem() {
+  const input = document.getElementById('chatInput');
+  const mensagem = input.value.trim().toLowerCase();
+  
+  if (mensagem === '') return;
+
+  adicionarMensagemChat(input.value, 'user-msg');
+  input.value = '';
+
+  setTimeout(() => processarIntencaoBot(mensagem), 500);
+}
+
+function processarIntencaoBot(msg) {
+  let resposta = "Desculpe, não entendi o comando. Tente perguntar sobre o 'risco', 'sensores' ou pedir para 'trancar a porta'.";
+
+  if (msg.includes('risco') || msg.includes('status') || msg.includes('segura')) {
+    const riscoAtual = document.getElementById('riskValue').innerText;
+    resposta = `O nível de risco atual da casa é de ${riscoAtual}. ${estadoSistema.portaPrincipal ? "Atenção: A porta principal está aberta." : "Os acessos principais estão seguros."}`;
+  } 
+  else if (msg.includes('trancar') || msg.includes('fechar') && msg.includes('porta')) {
+    if (estadoSistema.portaPrincipal) {
+      togglePorta();
+      resposta = "Comando aceito. A porta principal foi trancada remotamente.";
+    } else {
+      resposta = "A porta principal já se encontra trancada.";
+    }
+  }
+  else if (msg.includes('polícia') || msg.includes('socorro') || msg.includes('190')) {
+    discarEmergencia('190 (POLÍCIA MILITAR)', 'Acionamento via Assistente de Voz');
+    resposta = "Alerta de emergência ativado! Entrando em contato com a Polícia Militar imediatamente.";
+  }
+
+  adicionarMensagemChat(resposta, 'system-msg');
+}
+
+function adicionarMensagemChat(texto, classe) {
+  const chatHistory = document.getElementById('chatHistory');
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `chat-msg ${classe}`;
+  msgDiv.innerText = texto;
+  chatHistory.appendChild(msgDiv);
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+// Inicializa a IA na inicialização
+window.onload = carregarModelosIA;

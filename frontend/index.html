@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SENTINEL 2.1 — Smart Home Security Engine</title>
+  <title>SENTINEL 2.1 — Smart Home & Threat Engine</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Importando a Inteligência Artificial face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 </head>
 <body>
 
@@ -15,7 +17,7 @@
       <h1>SENTINEL <span>2.1</span></h1>
     </div>
     <div class="system-status">
-      <span class="status-dot green"></span> SISTEMA OPERACIONAL
+      <span class="status-dot green"></span> SISTEMA OPERACIONAL | IA ATIVA
     </div>
   </header>
 
@@ -34,7 +36,7 @@
       </div>
 
       <div class="device-summary">
-        <h3>STATUS DOS ACESSOS</h3>
+        <h3>STATUS DOS SENSORES</h3>
         <div class="status-item">
           <span>Porta Principal:</span>
           <strong id="statusPortaPrincipal" class="text-green">TRANCADA</strong>
@@ -42,6 +44,14 @@
         <div class="status-item">
           <span>Janela da Sala:</span>
           <strong id="statusJanelaSala" class="text-green">FECHADA</strong>
+        </div>
+        <div class="status-item">
+          <span>Sensor de Fumaça:</span>
+          <strong id="statusFumaca" class="text-green">NORMAL</strong>
+        </div>
+        <div class="status-item">
+          <span>Sensor de Gás:</span>
+          <strong id="statusGas" class="text-green">NORMAL</strong>
         </div>
         <div class="status-item">
           <span>Último Acesso:</span>
@@ -53,56 +63,63 @@
     <!-- COLUNA CENTRAL: MAPA 2D DA CASA -->
     <section class="card map-card">
       <div class="map-header">
-        <h2>PLANTA BAIXA 2D (SIMULADOR DE CÂMERAS & SENSORES)</h2>
-        <span class="instruction">Clique em uma câmera para abrir o feed ao vivo</span>
+        <h2>PLANTA BAIXA 2D (CÂMERAS & SENSORES)</h2>
+        <span class="instruction">Clique nos ícones para simular sensores ou abrir câmeras</span>
       </div>
 
       <div class="house-map" id="houseMap">
         <!-- ÁREAS DA CASA -->
         <div class="room hallway">CORREDOR</div>
-        <div class="room living-room">SALA DE ESTAR</div>
+        <div class="room living-room" id="roomLiving">SALA DE ESTAR</div>
         <div class="room bedroom">QUARTO</div>
-        <div class="room kitchen">COZINHA</div>
+        <div class="room kitchen" id="roomKitchen">COZINHA</div>
 
-        <!-- ÍCONES DE CÂMERAS CLICÁVEIS -->
-        <button class="cam-btn cam-entrance" onclick="abrirCamera('cam_entrada', 'Entrada Principal')">
-          🎥 Entrada
-        </button>
-        <button class="cam-btn cam-living" onclick="abrirCamera('cam_sala', 'Sala de Estar')">
-          🎥 Sala
-        </button>
-        <button class="cam-btn cam-backyard" onclick="abrirCamera('cam_quintal', 'Quintal')">
-          🎥 Quintal
-        </button>
+        <!-- CÂMERAS -->
+        <button class="cam-btn cam-entrance" onclick="abrirCamera('cam_entrada', 'Entrada Principal')">🎥 Entrada</button>
+        <button class="cam-btn cam-living" onclick="abrirCamera('cam_sala', 'Sala de Estar')">🎥 Sala</button>
+        <button class="cam-btn cam-backyard" onclick="abrirCamera('cam_quintal', 'Quintal')">🎥 Quintal</button>
 
-        <!-- SENSORES INTERATIVOS (PORTAS E JANELAS) -->
-        <button class="sensor-btn door-main" id="btnPortaPrincipal" onclick="togglePorta()">
-          🚪 Porta Principal (TRANCADA)
-        </button>
-        <button class="sensor-btn window-living" id="btnJanelaSala" onclick="toggleJanela()">
-          🪟 Janela Sala (FECHADA)
-        </button>
+        <!-- SENSORES DE ACESSO -->
+        <button class="sensor-btn door-main" id="btnPortaPrincipal" onclick="togglePorta()">🚪 Porta (TRANCADA)</button>
+        <button class="sensor-btn window-living" id="btnJanelaSala" onclick="toggleJanela()">🪟 Janela (FECHADA)</button>
+
+        <!-- SENSORES DE INCÊNDIO E GÁS -->
+        <button class="sensor-btn sensor-fire" id="btnFireSensor" onclick="toggleIncendio()">🔥 Sensor Fumaça</button>
+        <button class="sensor-btn sensor-gas" id="btnGasSensor" onclick="toggleGas()">⚠️ Sensor Gás GLP</button>
       </div>
     </section>
 
     <!-- COLUNA DIREITA: LOGS E ASSISTENTE -->
     <section class="card log-card">
-      <h2>HISTÓRICO DE EVENTOS</h2>
-      <div class="log-feed" id="logFeed">
-        <div class="log-item info">
-          <small>09:47</small> Sistema Sentinel 2.1 inicializado com sucesso.
+      
+      <!-- WIDGET DO CHATBOT -->
+      <div class="chatbot-widget">
+        <h3>💬 SENTINEL ASSISTANT (IA)</h3>
+        <div class="chat-history" id="chatHistory">
+          <div class="chat-msg system-msg">Olá! Sou o Sentinel Assistant. Como posso ajudar com a segurança da casa hoje?</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chatInput" placeholder="Ex: Tranque a porta principal..." onkeypress="verificarEnter(event)">
+          <button onclick="enviarMensagem()">Enviar</button>
         </div>
       </div>
 
-      <div class="chatbot-widget">
-        <h3>💬 SENTINEL ASSISTANT</h3>
-        <p class="chat-msg">Aguardando comandos de voz ou texto...</p>
+      <h2 style="margin-top: 15px;">HISTÓRICO DE EVENTOS</h2>
+      <div class="log-feed" id="logFeed">
+        <div class="log-item info">
+          <small>00:00</small> Sentinel 2.1 online. Conectado à Base Policial.
+        </div>
+      </div>
+
+      <div class="emergency-actions" style="margin-top: 15px;">
+        <button class="btn-emergency btn-fire" onclick="discarEmergencia('193 (BOMBEIROS)', 'Incêndio / Vazamento de Gás')">🚨 LIGAR BOMBEIROS (193)</button>
+        <button class="btn-emergency btn-police" onclick="discarEmergencia('190 (POLÍCIA MILITAR)', 'Intruso / Procurado Detectado')">🚔 LIGAR POLÍCIA (190)</button>
       </div>
     </section>
 
   </main>
 
-  <!-- MODAL DA WEBCAM DO NOTEBOOK -->
+  <!-- MODAL WEBCAM & RECONHECIMENTO -->
   <div class="modal-overlay" id="cameraModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -113,14 +130,25 @@
       <div class="webcam-viewport">
         <video id="webcam" autoplay muted playsinline></video>
         <div class="facial-overlay" id="facialOverlay">
-          <span id="scanStatus">ESCANEANDO BIOMETRIA...</span>
+          <span id="scanStatus">CARREGANDO INTELIGÊNCIA ARTIFICIAL...</span>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-action green" onclick="simularMorador()">Simular: Morador (Reconhecido)</button>
-        <button class="btn-action red" onclick="simularIntruso()">Simular: Desconhecido (Invasão)</button>
+        <button class="btn-action green" id="btnCadastrarRosto" onclick="cadastrarBiometria()">📸 1. Memorizar Meu Rosto</button>
+        <button class="btn-action orange" id="btnLigarIA" onclick="iniciarReconhecimento()">🤖 2. Ativar Monitoramento IA</button>
+        <button class="btn-action red" onclick="simularProcuradoPolicia()">🚔 Simular Procurado</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE LIGAÇÃO DE EMERGÊNCIA -->
+  <div class="modal-overlay" id="emergencyModal">
+    <div class="modal-content emergency-box">
+      <h2 id="emergencyTitle">🚨 CHAMADA DE EMERGÊNCIA</h2>
+      <p id="emergencyBody">Discando para a central...</p>
+      <div class="call-animation">📞 <span id="emergencyTimer">00:03</span></div>
+      <button class="btn-action red" onclick="cancelarEmergencia()">CANCELAR CHAMADA</button>
     </div>
   </div>
 
