@@ -2,32 +2,59 @@ import { useState, useEffect } from 'react';
 import './index.css';
 
 function App() {
-  // Estados do Sistema (Sensores e Alertas)
-  const [portaPrincipal, setPortaPrincipal] = useState(false);
-  const [janelaSala, setJanelaSala] = useState(false);
+  const [luzes, setLuzes] = useState({ sala: false, quarto: false, cozinha: false, corredor: false });
+  const [portas, setPortas] = useState({ principal: false, quarto: false });
+  const [janelas, setJanelas] = useState({ sala: false, cozinha: false });
   const [incendio, setIncendio] = useState(false);
   const [gas, setGas] = useState(false);
   const [alertaPolicial, setAlertaPolicial] = useState(false);
   const [risco, setRisco] = useState(10);
-  const [ultimoAcesso, setUltimoAcesso] = useState('Aguardando...');
-  
+  const [logsServidor, setLogsServidor] = useState([]);
+
   // Estados do Chatbot
   const [historicoChat, setHistoricoChat] = useState([
-    { texto: 'Olá! Sou o Sentinel Assistant. Como posso ajudar com a segurança da casa hoje?', tipo: 'system-msg' }
+    { texto: 'Sentinel Assistant online e conectado ao Back-End TypeScript.', tipo: 'system-msg' }
   ]);
   const [inputTexto, setInputTexto] = useState('');
 
-  // Motor Preditivo de Risco Reativo
+  // Sincronizar com o Back-End (API Node.js)
+  useEffect(() => {
+    fetch('http://localhost:3001/api/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.logs) setLogsServidor(data.logs);
+      })
+      .catch(err => console.error("Erro ao conectar com o Back-End:", err));
+  }, []);
+
+  // Função para registrar eventos na API
+  const registrarEventoAPI = async (tipo, status) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/evento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, status })
+      });
+      const data = await response.json();
+      if (data.log) {
+        setLogsServidor(prev => [data.log, ...prev]);
+      }
+    } catch (err) {
+      console.error("Erro ao enviar evento para a API:", err);
+    }
+  };
+
+  // Motor Preditivo Dinâmico
   useEffect(() => {
     let score = 10;
-    if (portaPrincipal) score += 25;
-    if (janelaSala) score += 20;
+    if (portas.principal) score += 20;
+    if (janelas.sala || janelas.cozinha) score += 15;
     if (gas) score += 50;
     if (incendio) score += 70;
     if (alertaPolicial) score += 90;
     
     setRisco(score > 100 ? 100 : score);
-  }, [portaPrincipal, janelaSala, gas, incendio, alertaPolicial]);
+  }, [portas, janelas, gas, incendio, alertaPolicial]);
 
   const getCorRisco = () => {
     if (risco < 30) return '#10b981';
@@ -35,17 +62,30 @@ function App() {
     return '#ef4444';
   };
 
-  // Funções de Ação dos Sensores
-  const togglePorta = () => {
-    setPortaPrincipal(!portaPrincipal);
-    setUltimoAcesso(portaPrincipal ? 'Porta Fechada' : 'Porta Aberta manualmente');
+  const toggleLuz = (comodo) => {
+    setLuzes(prev => {
+      const novoEstado = !prev[comodo];
+      registrarEventoAPI('Iluminação', `Luz da ${comodo} ${novoEstado ? 'Ligada' : 'Desligada'}`);
+      return { ...prev, [comodo]: novoEstado };
+    });
   };
 
-  const toggleJanela = () => setJanelaSala(!janelaSala);
-  const toggleIncendio = () => setIncendio(!incendio);
-  const toggleGas = () => setGas(!gas);
+  const togglePorta = (porta) => {
+    setPortas(prev => {
+      const novoEstado = !prev[porta];
+      registrarEventoAPI('Segurança', `Porta ${porta} ${novoEstado ? 'Aberta' : 'Trancada'}`);
+      return { ...prev, [porta]: novoEstado };
+    });
+  };
 
-  // Lógica do Chatbot Local
+  const toggleJanela = (janela) => {
+    setJanelas(prev => {
+      const novoEstado = !prev[janela];
+      registrarEventoAPI('Segurança', `Janela ${janela} ${novoEstado ? 'Aberta' : 'Fechada'}`);
+      return { ...prev, [janela]: novoEstado };
+    });
+  };
+
   const enviarMensagem = (e) => {
     e.preventDefault();
     if (!inputTexto.trim()) return;
@@ -55,21 +95,19 @@ function App() {
     setInputTexto('');
 
     setTimeout(() => {
-      let resposta = "Comando não reconhecido. Pergunte sobre o 'risco' ou peça para 'trancar a porta'.";
-      const msgLower = novaMsg.toLowerCase();
+      let resposta = "Comando processado pelo Sentinel Assistant.";
+      const msg = novaMsg.toLowerCase();
 
-      if (msgLower.includes('risco') || msgLower.includes('status')) {
-        resposta = `O risco atual da casa é de ${risco}%. ${portaPrincipal ? 'Atenção: Porta aberta.' : 'Seguro.'}`;
-      } else if (msgLower.includes('trancar') || msgLower.includes('fechar')) {
-        setPortaPrincipal(false);
-        resposta = "A porta principal foi trancada com sucesso.";
-      } else if (msgLower.includes('polícia') || msgLower.includes('190')) {
-        setAlertaPolicial(true);
-        resposta = "⚠️ ALERTA: Protocolo de segurança acionado para a Polícia Militar!";
+      if (msg.includes('risco')) {
+        resposta = `O índice de risco atual monitorado pela API é de ${risco}%.`;
+      } else if (msg.includes('trancar')) {
+        setPortas({ principal: false, quarto: false });
+        setJanelas({ sala: false, cozinha: false });
+        resposta = "Todos os acessos foram trancados com segurança.";
       }
 
       setHistoricoChat(prev => [...prev, { texto: resposta, tipo: 'system-msg' }]);
-    }, 500);
+    }, 400);
   };
 
   return (
@@ -77,15 +115,14 @@ function App() {
       <header className="navbar">
         <div className="logo">
           <span className="shield-icon">🛡️</span>
-          <h1>SENTINEL <span>2.1 (React Pro)</span></h1>
+          <h1>SENTINEL <span>2.1 (Full-Stack Integrado)</span></h1>
         </div>
         <div className="system-status">
-          <span className="status-dot green"></span> SISTEMA TOTALMENTE ATIVO
+          <span className="status-dot green"></span> API NODE.JS CONECTADA
         </div>
       </header>
 
       <main className="dashboard-grid">
-        {/* COLUNA ESQUERDA: RISCO E STATUS */}
         <section className="card risk-card">
           <h2>ÍNDICE PREDITIVO DE RISCO</h2>
           <div className="gauge-container">
@@ -101,83 +138,76 @@ function App() {
           </div>
 
           <div className="device-summary">
-            <h3>STATUS DOS SENSORES</h3>
-            <div className="status-item">
-              <span>Porta Principal:</span>
-              <strong className={portaPrincipal ? 'text-red' : 'text-green'}>
-                {portaPrincipal ? 'ABERTA' : 'TRANCADA'}
-              </strong>
-            </div>
-            <div className="status-item">
-              <span>Janela da Sala:</span>
-              <strong className={janelaSala ? 'text-red' : 'text-green'}>
-                {janelaSala ? 'ABERTA' : 'FECHADA'}
-              </strong>
-            </div>
-            <div className="status-item">
-              <span>Sensor Fumaça:</span>
-              <strong className={incendio ? 'text-red' : 'text-green'}>
-                {incendio ? 'FOGO DETECTADO' : 'NORMAL'}
-              </strong>
-            </div>
-            <div className="status-item">
-              <span>Sensor Gás:</span>
-              <strong className={gas ? 'text-red' : 'text-green'}>
-                {gas ? 'VAZAMENTO' : 'NORMAL'}
-              </strong>
-            </div>
-            <div className="status-item">
-              <span>Último Evento:</span>
-              <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>{ultimoAcesso}</span>
+            <h3>LOGS DO SERVIDOR (API)</h3>
+            <div className="log-feed" style={{ maxHeight: '150px', overflowY: 'auto', background: '#0f172a', padding: '8px', borderRadius: '4px', fontSize: '0.75rem' }}>
+              {logsServidor.map((log, index) => (
+                <div key={index} style={{ marginBottom: '5px', borderBottom: '1px solid #1e293b', paddingBottom: '3px' }}>
+                  <small style={{ color: '#38bdf8' }}>{log.timestamp}</small> <strong>{log.tipo}:</strong> {log.status}
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* COLUNA CENTRAL: MAPA 2D DA CASA */}
         <section className="card map-card">
           <div className="map-header">
-            <h2>PLANTA BAIXA 2D (SMART HOME)</h2>
-            <span className="instruction">Clique nos elementos para interagir</span>
+            <h2>PLANTA BAIXA ARQUITETÔNICA (FULL-STACK)</h2>
           </div>
 
-          <div className="house-map">
-            <div className="room hallway">CORREDOR</div>
-            <div className="room living-room">SALA DE ESTAR</div>
-            <div className="room bedroom">QUARTO</div>
-            <div className={`room kitchen ${incendio ? 'hazard' : ''}`}>COZINHA</div>
+          <div className="house-map-layout">
+            <div className={`map-room ${luzes.corredor ? 'lit' : ''}`}>
+              <div className="room-title">
+                <span>CORREDOR</span>
+                <span>{luzes.corredor ? '💡 ON' : '🔌 OFF'}</span>
+              </div>
+              <div className="room-controls">
+                <button className={`mini-btn ${luzes.corredor ? 'active-on' : ''}`} onClick={() => toggleLuz('corredor')}>Luz</button>
+                <button className={`mini-btn ${portas.principal ? 'active-off' : 'active-on'}`} onClick={() => togglePorta('principal')}>
+                  🚪 Porta: {portas.principal ? 'Aberta' : 'Trancada'}
+                </button>
+              </div>
+            </div>
 
-            {/* Botões interativos dos sensores */}
-            <button 
-              className={`sensor-btn door-main ${portaPrincipal ? 'open' : ''}`}
-              onClick={togglePorta}
-            >
-              🚪 Porta ({portaPrincipal ? 'ABERTA' : 'TRANCADA'})
-            </button>
+            <div className={`map-room ${luzes.sala ? 'lit' : ''}`}>
+              <div className="room-title">
+                <span>SALA DE ESTAR</span>
+                <span>{luzes.sala ? '💡 ON' : '🔌 OFF'}</span>
+              </div>
+              <div className="room-controls">
+                <button className={`mini-btn ${luzes.sala ? 'active-on' : ''}`} onClick={() => toggleLuz('sala')}>Luz</button>
+                <button className={`mini-btn ${janelas.sala ? 'active-off' : 'active-on'}`} onClick={() => toggleJanela('sala')}>
+                  🪟 Janela: {janelas.sala ? 'Aberta' : 'Fechada'}
+                </button>
+              </div>
+            </div>
 
-            <button 
-              className={`sensor-btn window-living ${janelaSala ? 'open' : ''}`}
-              onClick={toggleJanela}
-            >
-              🪟 Janela ({janelaSala ? 'ABERTA' : 'FECHADA'})
-            </button>
+            <div className={`map-room ${luzes.quarto ? 'lit' : ''}`}>
+              <div className="room-title">
+                <span>QUARTO PRINCIPAL</span>
+                <span>{luzes.quarto ? '💡 ON' : '🔌 OFF'}</span>
+              </div>
+              <div className="room-controls">
+                <button className={`mini-btn ${luzes.quarto ? 'active-on' : ''}`} onClick={() => toggleLuz('quarto')}>Luz</button>
+                <button className={`mini-btn ${portas.quarto ? 'active-off' : 'active-on'}`} onClick={() => togglePorta('quarto')}>
+                  🚪 Porta: {portas.quarto ? 'Aberta' : 'Trancada'}
+                </button>
+              </div>
+            </div>
 
-            <button 
-              className={`sensor-btn sensor-fire ${incendio ? 'active' : ''}`}
-              onClick={toggleIncendio}
-            >
-              🔥 Fumaça
-            </button>
-
-            <button 
-              className={`sensor-btn sensor-gas ${gas ? 'active' : ''}`}
-              onClick={toggleGas}
-            >
-              ⚠️ Gás GLP
-            </button>
+            <div className={`map-room ${luzes.cozinha ? 'lit' : ''} ${incendio || gas ? 'hazard-room' : ''}`}>
+              <div className="room-title">
+                <span>COZINHA & ÁREA</span>
+                <span>{luzes.cozinha ? '💡 ON' : '🔌 OFF'}</span>
+              </div>
+              <div className="room-controls">
+                <button className={`mini-btn ${luzes.cozinha ? 'active-on' : ''}`} onClick={() => toggleLuz('cozinha')}>Luz</button>
+                <button className={`mini-btn ${incendio ? 'active-off' : ''}`} onClick={() => { setIncendio(!incendio); registrarEventoAPI('Perigo', 'Incêndio alternado'); }}>🔥 Fogo</button>
+                <button className={`mini-btn ${gas ? 'active-off' : ''}`} onClick={() => { setGas(!gas); registrarEventoAPI('Perigo', 'Gás alternado'); }}>⚠️ Gás</button>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* COLUNA DIREITA: CHATBOT E EMERGÊNCIA */}
         <section className="card log-card">
           <div className="chatbot-widget">
             <h3>💬 SENTINEL ASSISTANT</h3>
@@ -199,9 +229,9 @@ function App() {
             </form>
           </div>
 
-          <div className="emergency-actions" style={{ marginTop: '20px' }}>
-            <button className="btn-emergency btn-fire" onClick={() => setIncendio(true)}>🚨 SIMULAR INCÊNDIO</button>
-            <button className="btn-emergency btn-police" onClick={() => setAlertaPolicial(true)}>🚔 ALERTA POLICIAL</button>
+          <div className="emergency-actions" style={{ marginTop: '15px' }}>
+            <button className="btn-emergency btn-fire" onClick={() => { setIncendio(!incendio); registrarEventoAPI('Emergência', 'Botão de Incêndio Acionado'); }}>🚨 ACIONAR INCÊNDIO</button>
+            <button className="btn-emergency btn-police" onClick={() => { setAlertaPolicial(!alertaPolicial); registrarEventoAPI('Emergência', 'Alerta Policial Ativado'); }}>🚔 ALERTA POLICIAL</button>
           </div>
         </section>
       </main>
