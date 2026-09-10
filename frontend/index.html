@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SENTINEL 2.1 — Smart Home & Threat Engine</title>
+  <title>SENTINEL 3.0 — Smart Home & Threat Engine</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Importando a Inteligência Artificial face-api.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <!-- CDN unpkg estável da face-api.js -->
+  <script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
 
@@ -14,7 +14,7 @@
   <header class="navbar">
     <div class="logo">
       <span class="shield-icon">🛡️</span>
-      <h1>SENTINEL <span>2.1</span></h1>
+      <h1>SENTINEL <span>3.0</span></h1>
     </div>
     <div class="system-status">
       <span class="status-dot green"></span> SISTEMA OPERACIONAL | IA ATIVA
@@ -68,22 +68,18 @@
       </div>
 
       <div class="house-map" id="houseMap">
-        <!-- ÁREAS DA CASA -->
         <div class="room hallway">CORREDOR</div>
         <div class="room living-room" id="roomLiving">SALA DE ESTAR</div>
         <div class="room bedroom">QUARTO</div>
         <div class="room kitchen" id="roomKitchen">COZINHA</div>
 
-        <!-- CÂMERAS -->
         <button class="cam-btn cam-entrance" onclick="abrirCamera('cam_entrada', 'Entrada Principal')">🎥 Entrada</button>
         <button class="cam-btn cam-living" onclick="abrirCamera('cam_sala', 'Sala de Estar')">🎥 Sala</button>
         <button class="cam-btn cam-backyard" onclick="abrirCamera('cam_quintal', 'Quintal')">🎥 Quintal</button>
 
-        <!-- SENSORES DE ACESSO -->
         <button class="sensor-btn door-main" id="btnPortaPrincipal" onclick="togglePorta()">🚪 Porta (TRANCADA)</button>
         <button class="sensor-btn window-living" id="btnJanelaSala" onclick="toggleJanela()">🪟 Janela (FECHADA)</button>
 
-        <!-- SENSORES DE INCÊNDIO E GÁS -->
         <button class="sensor-btn sensor-fire" id="btnFireSensor" onclick="toggleIncendio()">🔥 Sensor Fumaça</button>
         <button class="sensor-btn sensor-gas" id="btnGasSensor" onclick="toggleGas()">⚠️ Sensor Gás GLP</button>
       </div>
@@ -91,12 +87,10 @@
 
     <!-- COLUNA DIREITA: LOGS E ASSISTENTE -->
     <section class="card log-card">
-      
-      <!-- WIDGET DO CHATBOT -->
       <div class="chatbot-widget">
         <h3>💬 SENTINEL ASSISTANT (IA)</h3>
         <div class="chat-history" id="chatHistory">
-          <div class="chat-msg system-msg">Olá! Sou o Sentinel Assistant. Como posso ajudar com a segurança da casa hoje?</div>
+          <div class="chat-msg system-msg">Olá! Sou o Sentinel Assistant 3.0. Como posso ajudar com a segurança da casa hoje?</div>
         </div>
         <div class="chat-input-area">
           <input type="text" id="chatInput" placeholder="Ex: Tranque a porta principal..." onkeypress="verificarEnter(event)">
@@ -107,7 +101,7 @@
       <h2 style="margin-top: 15px;">HISTÓRICO DE EVENTOS</h2>
       <div class="log-feed" id="logFeed">
         <div class="log-item info">
-          <small>00:00</small> Sentinel 2.1 online. Conectado à Base Policial.
+          <small>00:00</small> Sentinel 3.0 online. Conectado à Base Policial.
         </div>
       </div>
 
@@ -135,8 +129,8 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-action green" id="btnCadastrarRosto" onclick="cadastrarBiometria()">📸 1. Memorizar Meu Rosto</button>
-        <button class="btn-action orange" id="btnLigarIA" onclick="iniciarReconhecimento()">🤖 2. Ativar Monitoramento IA</button>
+        <button class="btn-action green" onclick="cadastrarBiometria()">📸 1. Memorizar Meu Rosto</button>
+        <button class="btn-action orange" onclick="iniciarReconhecimento()">🤖 2. Ativar Monitoramento IA</button>
         <button class="btn-action red" onclick="simularProcuradoPolicia()">🚔 Simular Procurado</button>
       </div>
     </div>
